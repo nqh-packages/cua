@@ -14,6 +14,7 @@ mod hotkey;
 mod invoke_menu;
 mod agent_display;
 mod kill_app;
+mod quit_app;
 mod launch_app;
 mod list_apps;
 mod list_windows;
@@ -1207,6 +1208,7 @@ pub fn register_all(
     ));
     registry.register(Box::new(launch_app::LaunchAppTool));
     registry.register(Box::new(kill_app::KillAppTool));
+    registry.register(Box::new(quit_app::QuitAppTool));
     registry.register(Box::new(agent_display::AgentDisplayTool));
     let pid_window_candidates: WindowTargetCandidates = Arc::new(pid_window_target_candidates);
     registry.register(pid_window_guarded(

@@ -478,6 +478,7 @@ pub fn is_computer_action(tool_name: &str, operation: ToolOperation) -> bool {
                     capability.as_str(),
                     "app.launch"
                         | "app.kill"
+                        | "app.quit"
                         | "window.activate"
                         | "window.frame.set"
                         | "browser.navigate"
