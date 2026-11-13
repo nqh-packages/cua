@@ -109,7 +109,10 @@ impl Tool for AgentDisplayTool {
                     .with_structured(json!({ "displays": displays }))
             }
             "remove" => match args.get("display_id").and_then(Value::as_u64).and_then(|n| u32::try_from(n).ok()) {
-                Some(id) => match virtual_display::remove(id) {
+                Some(id) => match {
+                    let _ = session_resources::finish_recording(id);
+                    virtual_display::remove(id)
+                } {
                     Ok(()) => {
                         session_resources::forget_display(id);
                         ToolResult::text(format!("✅ Removed display {id}."))

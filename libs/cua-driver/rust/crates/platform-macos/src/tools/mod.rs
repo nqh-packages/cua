@@ -13,6 +13,7 @@ mod get_window_state;
 mod hotkey;
 mod invoke_menu;
 mod agent_display;
+mod display_recording;
 mod kill_app;
 mod quit_app;
 mod launch_app;
@@ -1210,6 +1211,7 @@ pub fn register_all(
     registry.register(Box::new(kill_app::KillAppTool));
     registry.register(Box::new(quit_app::QuitAppTool));
     registry.register(Box::new(agent_display::AgentDisplayTool));
+    registry.register(Box::new(display_recording::DisplayRecordingTool));
     let pid_window_candidates: WindowTargetCandidates = Arc::new(pid_window_target_candidates);
     registry.register(pid_window_guarded(
         bring_to_front::BringToFrontTool,

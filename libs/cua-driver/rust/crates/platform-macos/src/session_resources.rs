@@ -4,9 +4,12 @@
 use std::collections::HashMap;
 use std::sync::{Mutex, Once};
 
+use cua_driver_core::video::{VideoBackend, VideoMetadata};
+
 use crate::virtual_display;
 
 static OWNED: Mutex<Option<HashMap<String, Vec<u32>>>> = Mutex::new(None);
+static RECORDINGS: Mutex<Option<HashMap<u32, (String, Box<dyn VideoBackend>)>>> = Mutex::new(None);
 static INSTALL: Once = Once::new();
 
 fn install() {
@@ -27,6 +30,34 @@ pub fn own_display(session: &str, display_id: u32) {
     }
 }
 
+pub fn own_recording(
+    session: &str,
+    display_id: u32,
+    backend: Box<dyn VideoBackend>,
+) -> Result<(), Box<dyn VideoBackend>> {
+    install();
+    let mut guard = RECORDINGS.lock().unwrap_or_else(|e| e.into_inner());
+    let map = guard.get_or_insert_with(HashMap::new);
+    if map.contains_key(&display_id) {
+        return Err(backend);
+    }
+    map.insert(display_id, (session.to_owned(), backend));
+    Ok(())
+}
+
+pub fn recording_session(display_id: u32) -> Option<String> {
+    let guard = RECORDINGS.lock().unwrap_or_else(|e| e.into_inner());
+    guard.as_ref()?.get(&display_id).map(|(session, _)| session.clone())
+}
+
+pub fn finish_recording(display_id: u32) -> Option<anyhow::Result<VideoMetadata>> {
+    let taken = {
+        let mut guard = RECORDINGS.lock().unwrap_or_else(|e| e.into_inner());
+        guard.as_mut().and_then(|map| map.remove(&display_id))
+    };
+    taken.map(|(_, backend)| backend.stop())
+}
+
 pub fn forget_display(display_id: u32) {
     let mut guard = OWNED.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(map) = guard.as_mut() {
@@ -37,6 +68,21 @@ pub fn forget_display(display_id: u32) {
 }
 
 fn release(session: &str) {
+    let recorded: Vec<u32> = {
+        let guard = RECORDINGS.lock().unwrap_or_else(|e| e.into_inner());
+        guard
+            .as_ref()
+            .map(|map| {
+                map.iter()
+                    .filter(|(_, (owner, _))| owner == session)
+                    .map(|(id, _)| *id)
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    for id in recorded {
+        let _ = finish_recording(id);
+    }
     let displays = {
         let mut guard = OWNED.lock().unwrap_or_else(|e| e.into_inner());
         guard.as_mut().and_then(|map| map.remove(session))

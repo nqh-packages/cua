@@ -139,8 +139,15 @@ pub struct SckitVideoBackendFactory;
 
 impl VideoBackendFactory for SckitVideoBackendFactory {
     fn start(&self, output_path: &Path) -> anyhow::Result<Box<dyn VideoBackend>> {
-        SckitVideoBackend::start(output_path).map(|b| Box::new(b) as Box<dyn VideoBackend>)
+        SckitVideoBackend::start(output_path, None).map(|b| Box::new(b) as Box<dyn VideoBackend>)
     }
+}
+
+pub fn start_on_display(
+    output_path: &Path,
+    display_id: u32,
+) -> anyhow::Result<Box<dyn VideoBackend>> {
+    SckitVideoBackend::start(output_path, Some(display_id)).map(|b| Box::new(b) as Box<dyn VideoBackend>)
 }
 
 pub struct SckitVideoBackend {
@@ -156,7 +163,7 @@ pub struct SckitVideoBackend {
 }
 
 impl SckitVideoBackend {
-    fn start(output_path: &Path) -> anyhow::Result<Self> {
+    fn start(output_path: &Path, display_id: Option<u32>) -> anyhow::Result<Self> {
         if let Some(parent) = output_path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| {
                 anyhow::anyhow!(
@@ -181,10 +188,16 @@ impl SckitVideoBackend {
         let content = SCShareableContent::get()
             .map_err(|e| anyhow::anyhow!("SCShareableContent::get failed: {e}"))?;
         let displays = content.displays();
-        let display = displays
-            .into_iter()
-            .next()
-            .ok_or_else(|| anyhow::anyhow!("no displays available for ScreenCaptureKit"))?;
+        let available: Vec<u32> = displays.iter().map(|d| d.display_id()).collect();
+        let display = match display_id {
+            Some(id) => displays.into_iter().find(|d| d.display_id() == id).ok_or_else(|| {
+                anyhow::anyhow!("display {id} is not capturable; available displays: {available:?}")
+            })?,
+            None => displays
+                .into_iter()
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("no displays available for ScreenCaptureKit"))?,
+        };
 
         let filter = SCContentFilter::create()
             .with_display(&display)

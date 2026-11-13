@@ -961,6 +961,7 @@ pub fn advertised_risk_for(tool: &str) -> RiskAssessment {
         | "verify_state"
         | "set_config"
         | "agent_display"
+        | "display_recording"
         | "quit_app"
         | "start_recording"
         | "get_browser_state"
