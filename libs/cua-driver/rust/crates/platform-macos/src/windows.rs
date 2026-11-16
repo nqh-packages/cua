@@ -26,6 +26,9 @@ pub struct WindowInfo {
     pub layer: i32,
     pub z_index: usize,
     pub is_on_screen: bool,
+    /// `kCGWindowAlpha`: 0 means the window is on screen but fully transparent,
+    /// so any capture of it is blank.
+    pub alpha: f64,
     /// Active Space on the display WindowServer associates with this window.
     /// This can differ between windows when displays use independent Spaces.
     pub current_space_id: Option<u64>,
@@ -482,6 +485,7 @@ fn enumerate_windows(
             bounds,
             layer,
             is_on_screen,
+            alpha,
             ..
         } = description;
 
@@ -505,6 +509,7 @@ fn enumerate_windows(
             current_space_id: None,
             on_current_space: None,
             space_ids: None,
+            alpha,
         });
     }
 
@@ -982,6 +987,7 @@ mod tests {
             current_space_id: None,
             on_current_space: None,
             space_ids: None,
+            alpha: 1.0,
         }
     }
 
@@ -1137,6 +1143,7 @@ mod tests {
             title: String::new(),
             is_on_screen: false,
             space_ids: None,
+            alpha: 1.0,
             ..window(window_id, pid, "TextEdit")
         }
     }

@@ -729,6 +729,7 @@ mod tests {
             current_space_id: None,
             on_current_space: Some(true),
             space_ids: None,
+            alpha: 1.0,
         }
     }
 

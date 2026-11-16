@@ -17,7 +17,7 @@ fn def() -> &'static ToolDef {
         name: "list_windows".into(),
         description: "List top-level windows known to WindowServer, including off-screen ones (minimized, other Space, hidden): layer-0 only without `pid`, every layer with `pid`. Use it to find a `pid` and `window_id` for get_window_state; filter with `app` or `pid`, because an unfiltered call lists every window on the host. AppKit-internal helper windows and the driver's own overlay are omitted.\n\
             \n\
-            Per record: window_id, pid, app_name, title, bounds, layer, z_index, is_on_screen, space_ids, current_space_id, on_current_space. For the frontmost window take the maximum integer z_index; null means stacking is unavailable, so do not infer it from array order.".into(),
+            Per record: window_id, pid, app_name, title, bounds, layer, z_index, is_on_screen, alpha (0 = fully transparent, captures blank), space_ids, current_space_id, on_current_space. For the frontmost window take the maximum integer z_index; null means stacking is unavailable, so do not infer it from array order.".into(),
         input_schema: serde_json::json!({
             "type": "object",
             "properties": {
@@ -98,7 +98,13 @@ fn format_window_list(windows: &[crate::windows::WindowInfo]) -> String {
         } else {
             format!("\"{}\"", w.title)
         };
-        let tag = if w.is_on_screen { "" } else { " [off-screen]" };
+        let tag = if !w.is_on_screen {
+            " [off-screen]"
+        } else if w.alpha == 0.0 {
+            " [transparent]"
+        } else {
+            ""
+        };
         lines.push(format!(
             "- {} (pid {}) {} [window_id: {}]{tag}",
             w.app_name, w.pid, title, w.window_id
@@ -122,6 +128,7 @@ pub(super) fn window_record_json(w: &crate::windows::WindowInfo) -> Value {
         "layer": w.layer,
         "z_index": w.z_index,
         "is_on_screen": w.is_on_screen,
+        "alpha": w.alpha,
         "current_space_id": w.current_space_id,
         "on_current_space": w.on_current_space,
         "space_ids": w.space_ids,
@@ -166,8 +173,10 @@ mod tests {
             current_space_id: Some(1),
             on_current_space: Some(true),
             space_ids: Some(vec![1]),
+            alpha: 0.0,
         };
 
+        assert_eq!(window_record_json(&window)["alpha"], serde_json::json!(0.0));
         assert_eq!(window_record_json(&window)["z_index"], serde_json::json!(7));
         assert_eq!(
             window_record_json(&window)["current_space_id"],
@@ -203,7 +212,15 @@ mod tests {
             current_space_id: Some(1),
             on_current_space: Some(true),
             space_ids: Some(vec![1]),
+            alpha: 1.0,
         }
+    }
+
+    #[test]
+    fn text_marks_an_on_screen_transparent_window() {
+        let mut w = window(7, 1, "Example", "Doc", true);
+        w.alpha = 0.0;
+        assert!(format_window_list(&[w]).ends_with("[window_id: 7] [transparent]"));
     }
 
     #[test]
