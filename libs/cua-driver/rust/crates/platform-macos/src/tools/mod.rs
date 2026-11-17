@@ -15,6 +15,7 @@ mod hotkey;
 mod invoke_menu;
 mod agent_display;
 mod display_recording;
+mod invoke_menu_extra;
 mod kill_app;
 mod quit_app;
 mod launch_app;
@@ -1320,6 +1321,7 @@ pub fn register_all(
     registry.register(Box::new(quit_app::QuitAppTool));
     registry.register(Box::new(agent_display::AgentDisplayTool));
     registry.register(Box::new(display_recording::DisplayRecordingTool));
+    registry.register(Box::new(invoke_menu_extra::InvokeMenuExtraTool));
     let pid_window_candidates: WindowTargetCandidates = Arc::new(pid_window_target_candidates);
     registry.register(pid_window_guarded(
         bring_to_front::BringToFrontTool,

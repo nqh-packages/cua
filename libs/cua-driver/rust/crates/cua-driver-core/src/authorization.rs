@@ -938,6 +938,7 @@ pub fn advertised_risk_for(tool: &str) -> RiskAssessment {
         | "run_steps"
         | "run_script"
         | "invoke_menu"
+        | "invoke_menu_extra"
         | "launch_app"
         | "bring_to_front"
         | "set_window_frame"

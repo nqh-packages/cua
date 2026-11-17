@@ -965,6 +965,7 @@ pub fn default_capabilities_for(tool_name: &str) -> Vec<String> {
         "quit_app" => &["app.quit"],
         "agent_display" => &["display.virtual"],
         "display_recording" => &["display.virtual"],
+        "invoke_menu_extra" => &["menu.invoke"],
         "list_windows" => &["window.list"],
         "bring_to_front" => &["window.activate"],
         "set_window_frame" => &["window.frame.set"],
