@@ -688,6 +688,9 @@ pub fn parse_command() -> Command {
         println!("  cua-driver revoke --all           Stop and revoke every live session.");
         println!("                                      Revocation is deny-only and never needs a token.");
         println!();
+        println!("feedback:");
+        println!("  If something failed or was missing: ~/.agents/skills/agent-feedback/scripts/agent-feedback submit --tool cua-driver-local --kind friction|missing-capability|bug|confusing-output|idea --goal ... --happened ... --fix ...");
+        println!();
         println!("mcp options:");
         println!("  --direct                Own the runtime in this MCP process. On macOS this");
         println!("                          deliberately attributes TCC to the invoking host.");
