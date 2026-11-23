@@ -66,14 +66,20 @@ impl Tool for ListWindowsTool {
         let own_pid = std::process::id() as i32;
         windows.retain(|w| w.pid != own_pid);
         if let Some(filter) = args.opt_str("app") {
-            let mut bundle_ids = std::collections::HashMap::new();
+            let mut owners = std::collections::HashMap::new();
             windows.retain(|w| {
-                let bundle_id = bundle_ids
-                    .entry(w.pid)
-                    .or_insert_with(|| crate::apps::bundle_id_for_pid(w.pid));
+                let (bundle_id, bundle_names) = owners.entry(w.pid).or_insert_with(|| {
+                    (
+                        crate::apps::bundle_id_for_pid(w.pid),
+                        crate::apps::bundle_names_for_pid(w.pid),
+                    )
+                });
+                let names: Vec<&str> = std::iter::once(w.app_name.as_str())
+                    .chain(bundle_names.iter().map(String::as_str))
+                    .collect();
                 cua_driver_core::tool_args::app_filter_matches(
                     &filter,
-                    &w.app_name,
+                    &names,
                     bundle_id.as_deref(),
                 )
             });
@@ -151,7 +157,7 @@ mod tests {
         crate::windows::normalize_z_indices(&mut windows);
 
         let z: Vec<_> = windows.iter().map(|window| window.z_index).collect();
-        assert_eq!(z, [1, 0]);
+        assert_eq!(z, [Some(1), Some(0)]);
     }
 
     #[test]
@@ -168,7 +174,7 @@ mod tests {
                 height: 200.0,
             },
             layer: 0,
-            z_index: 7,
+            z_index: Some(7),
             is_on_screen: true,
             current_space_id: Some(1),
             on_current_space: Some(true),
@@ -207,7 +213,7 @@ mod tests {
                 height: 100.0,
             },
             layer: 0,
-            z_index: 1,
+            z_index: Some(1),
             is_on_screen: on_screen,
             current_space_id: Some(1),
             on_current_space: Some(true),
@@ -221,6 +227,18 @@ mod tests {
         let mut w = window(7, 1, "Example", "Doc", true);
         w.alpha = 0.0;
         assert!(format_window_list(&[w]).ends_with("[window_id: 7] [transparent]"));
+    }
+
+    #[test]
+    fn off_screen_window_record_has_null_z_index() {
+        let window = crate::windows::WindowInfo {
+            z_index: None,
+            ..window(10701, 65305, "Calculator", "", false)
+        };
+        assert_eq!(
+            window_record_json(&window)["z_index"],
+            serde_json::Value::Null
+        );
     }
 
     #[test]
