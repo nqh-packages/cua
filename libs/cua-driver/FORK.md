@@ -2,7 +2,8 @@
 
 Installed as `cua-driver-local`. Fork-only additions on top of upstream (each with a test and a skill entry in `~/.agents/skills/computer-use`):
 
-- `agent_display`: an extra virtual display for agents, removed when its session ends.
+- `agent_display` is upstream's since 0.59.5 (PR #8146). The fork adds a window guard around its create and remove, which puts other windows back after macOS reflows them.
+- `launch_app` `env`; a click on an `AXMenuButton` that lists `AXShowMenu` performs it.
 - `display_recording`: mp4 of one display.
 - `quit_app`: graceful quit without accessibility.
 - `invoke_menu_extra`: list or invoke an entry of a menu-bar status item without a window.
