@@ -82,7 +82,7 @@ pub fn list() -> Vec<DisplayInfo> {
         .collect()
 }
 
-pub fn create(width: u32, height: u32, name: &str) -> Result<DisplayInfo, String> {
+fn create_display(width: u32, height: u32, name: &str) -> Result<DisplayInfo, String> {
     validate_size(width, height)?;
     let mut guard = DISPLAYS.lock().unwrap_or_else(|e| e.into_inner());
     let map = guard.get_or_insert_with(HashMap::new);
@@ -99,7 +99,7 @@ pub fn create(width: u32, height: u32, name: &str) -> Result<DisplayInfo, String
     Ok(bounds_of(display_id))
 }
 
-pub fn remove(display_id: u32) -> Result<(), String> {
+fn remove_display(display_id: u32) -> Result<(), String> {
     let mut guard = DISPLAYS.lock().unwrap_or_else(|e| e.into_inner());
     match guard.as_mut().and_then(|map| map.remove(&display_id)) {
         Some(_) => Ok(()),
@@ -107,6 +107,14 @@ pub fn remove(display_id: u32) -> Result<(), String> {
             "display {display_id} was not created by this driver"
         )),
     }
+}
+
+pub fn create(width: u32, height: u32, name: &str) -> Result<DisplayInfo, String> {
+    crate::display_frame_guard::around_display_change(|| create_display(width, height, name))
+}
+
+pub fn remove(display_id: u32) -> Result<(), String> {
+    crate::display_frame_guard::around_display_change(|| remove_display(display_id))
 }
 
 unsafe fn class(name: &str) -> Result<&'static AnyClass, String> {

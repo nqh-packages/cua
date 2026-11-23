@@ -32,6 +32,7 @@ pub mod capture_consent;
 pub mod cursor;
 #[cfg(target_os = "macos")]
 pub mod display_awake;
+mod display_frame_guard;
 #[cfg(target_os = "macos")]
 pub mod document_edit;
 #[cfg(target_os = "macos")]

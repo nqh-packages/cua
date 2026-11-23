@@ -316,6 +316,23 @@ fn mutate_and_verify(input: &SetWindowFrameInput) -> Result<FrameOutcome, String
     }
 }
 
+pub(crate) fn restore_window_frame(
+    pid: i32,
+    window_id: u32,
+    bounds: &crate::windows::WindowBounds,
+) -> Result<(), String> {
+    let input = SetWindowFrameInput {
+        pid: u32::try_from(pid).map_err(|_| format!("pid {pid} is out of range"))?,
+        window_id: u64::from(window_id),
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+        session: None,
+    };
+    mutate_and_verify(&input).map(|_| ())
+}
+
 fn action_record(outcome: &FrameOutcome) -> ActionExecutionRecord {
     let effect = effect_from_value_readback(
         outcome.confirmed,
