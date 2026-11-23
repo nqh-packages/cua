@@ -2056,6 +2056,7 @@ fn perform_ax_click(
 
     let role = unsafe { copy_string_attr(element, "AXRole") }.unwrap_or_default();
     let title = unsafe { copy_string_attr(element, "AXTitle") }.unwrap_or_default();
+    let ax_action = menu_button_action(ax_action, &role, &advertised);
 
     // A click on an AppKit collection item is frequently represented by a
     // label child or row that does not advertise AXPress. Prefer a bounded,
@@ -2864,6 +2865,43 @@ mod tests {
             ),
             None,
             "strict-suppression paths retain their existing ownership"
+        );
+    }
+}
+
+fn menu_button_action(ax_action: &'static str, role: &str, advertised: &[String]) -> &'static str {
+    if ax_action == "AXPress"
+        && role == "AXMenuButton"
+        && advertised.iter().any(|action| action == "AXShowMenu")
+    {
+        "AXShowMenu"
+    } else {
+        ax_action
+    }
+}
+
+#[cfg(test)]
+mod menu_button_action_tests {
+    use super::menu_button_action;
+
+    fn actions(names: &[&str]) -> Vec<String> {
+        names.iter().map(|n| n.to_string()).collect()
+    }
+
+    #[test]
+    fn a_menu_button_press_opens_its_menu() {
+        let advertised = actions(&["AXPress", "AXShowMenu"]);
+        assert_eq!(menu_button_action("AXPress", "AXMenuButton", &advertised), "AXShowMenu");
+    }
+
+    #[test]
+    fn other_roles_and_explicit_actions_are_unchanged() {
+        let advertised = actions(&["AXPress", "AXShowMenu"]);
+        assert_eq!(menu_button_action("AXPress", "AXButton", &advertised), "AXPress");
+        assert_eq!(menu_button_action("AXPick", "AXMenuButton", &advertised), "AXPick");
+        assert_eq!(
+            menu_button_action("AXPress", "AXMenuButton", &actions(&["AXPress"])),
+            "AXPress"
         );
     }
 }

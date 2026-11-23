@@ -35,6 +35,10 @@ fn def() -> &'static ToolDef {
              shared instance. Without it, single-instance apps (Calculator, many utilities) hand \
              every caller the same window, so two sessions fight over it.\n\n\
              Optional `additional_arguments`: extra argv strings appended after --args.\n\n\
+             Optional `env`: an object of environment variables for the new process (for example \
+             `HOME` or a store path for a test build). They apply to a process that LaunchServices \
+             starts, so combine with `creates_new_application_instance` for an app that is \
+             already running. `DYLD_*` and `LD_*` are refused.\n\n\
              Returns the launched app's pid, bundle_id, name, and a `windows` array \
              (same shape as `list_windows`) so callers can skip an extra round-trip before \
              `get_window_state(pid, window_id)`. `launch_state` distinguishes whether the \
@@ -72,6 +76,11 @@ fn def() -> &'static ToolDef {
                     "type": "array",
                     "items": { "type": "string" },
                     "description": "Extra arguments appended after --args when launching."
+                },
+                "env": {
+                    "type": "object",
+                    "additionalProperties": { "type": "string" },
+                    "description": "Environment variables for the launched process. DYLD_* and LD_* are refused."
                 }
             },
             "additionalProperties": false
@@ -162,8 +171,10 @@ impl Tool for LaunchAppTool {
             return err;
         }
 
-        // Build env dict for webkit inspector.
-        let mut env: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        let mut env = match parse_launch_env(args.get("env")) {
+            Ok(env) => env,
+            Err(message) => return ToolResult::error(message),
+        };
         if let Some(port) = webkit_inspector_port {
             env.insert(
                 "WEBKIT_INSPECTOR_SERVER".to_string(),
@@ -984,5 +995,58 @@ mod tests {
             result.structured_content.unwrap()["error"],
             "PROTECTED_HOST_ENTRYPOINT"
         );
+    }
+}
+
+fn parse_launch_env(
+    value: Option<&Value>,
+) -> Result<std::collections::HashMap<String, String>, String> {
+    let Some(value) = value.filter(|v| !v.is_null()) else {
+        return Ok(Default::default());
+    };
+    let Some(object) = value.as_object() else {
+        return Err("launch_app: `env` must be an object of string values".into());
+    };
+    let mut env = std::collections::HashMap::new();
+    for (key, value) in object {
+        let valid = key
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+            && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+        if !valid {
+            return Err(format!("launch_app: `env` key {key:?} is not a valid name"));
+        }
+        if key.starts_with("DYLD_") || key.starts_with("LD_") {
+            return Err(format!("launch_app: `env` key {key} is refused"));
+        }
+        let Some(text) = value.as_str() else {
+            return Err(format!("launch_app: `env` value for {key} must be a string"));
+        };
+        env.insert(key.clone(), text.to_owned());
+    }
+    Ok(env)
+}
+
+#[cfg(test)]
+mod launch_env_tests {
+    use super::parse_launch_env;
+    use serde_json::json;
+
+    #[test]
+    fn accepts_plain_variables() {
+        let env = parse_launch_env(Some(&json!({"HOME": "/tmp/h", "STORE": "memory"}))).unwrap();
+        assert_eq!(env["HOME"], "/tmp/h");
+        assert_eq!(env.len(), 2);
+    }
+
+    #[test]
+    fn refuses_injection_names_and_non_strings() {
+        assert!(parse_launch_env(Some(&json!({"DYLD_INSERT_LIBRARIES": "/x"}))).is_err());
+        assert!(parse_launch_env(Some(&json!({"LD_PRELOAD": "/x"}))).is_err());
+        assert!(parse_launch_env(Some(&json!({"1BAD": "x"}))).is_err());
+        assert!(parse_launch_env(Some(&json!({"A": 1}))).is_err());
+        assert!(parse_launch_env(Some(&json!("A=1"))).is_err());
+        assert!(parse_launch_env(None).unwrap().is_empty());
     }
 }
